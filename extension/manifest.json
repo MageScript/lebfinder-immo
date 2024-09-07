@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
-    "name": "Ma Première Extension",
+    "name": "LBC immo finder",
     "version": "1.0",
-    "description": "Une simple extension pour Chrome.",
+    "description": "Trouver les biens les plus rentables.",
     "permissions": ["activeTab", "scripting", "tabs"],
     "host_permissions": [
       "https://www.leboncoin.fr/*" 

@@ -15,29 +15,34 @@ function get_max_number_of_pages(){
    return max_number_of_pages;
 }
 
-function delete_ads(){
-    let head_ad = document.getElementById("lht-space-ad");
-    if(head_ad){
-        head_ad.remove();
+function delete_ads(doc=document){
+    try{
+        let head_ad = doc.getElementById("lht-space-ad");
+        if(head_ad){
+            head_ad.remove();
+        }
+    
+        let left_ads_side = doc.getElementsByClassName("styles_sideColumn__Om95h")[0];
+        if(left_ads_side){
+            left_ads_side.remove();
+        }
+    
+        let ads = get_all_ads_elements(doc);
+        if(ads != false){
+            ads.forEach(ad => {
+                if (ad.className == "styles_ad__TwvnY") {
+                    ad.remove();
+                }
+            });
+        }
     }
-
-    let left_ads_side = document.getElementsByClassName("styles_sideColumn__Om95h")[0];
-    if(left_ads_side){
-        left_ads_side.remove();
-    }
-
-    let ads = get_all_ads_elements();
-    if(ads != false){
-        ads.forEach(ad => {
-            if (ad.className == "styles_ad__TwvnY") {
-                ad.remove();
-            }
-        });
+    catch(error){
+        console.log(error.message);
     }
 }
 
-function get_all_ads_elements(){
-    let container = document.querySelectorAll('.mb-lg');
+function get_all_ads_elements(doc=document){
+    let container = doc.querySelectorAll('.mb-lg');
     let ads = Array.from(container).filter(el => el.classList.length === 1 && el.classList.contains('mb-lg'));
      
     if (ads.length > 0) {
@@ -48,9 +53,9 @@ function get_all_ads_elements(){
     }
 }
 
-function get_ads_attributes(){
+function get_ads_attributes(doc){
     // Récupérer le contenu JSON d'une balise script
-    var scriptContent = document.getElementById('__NEXT_DATA__').textContent;
+    var scriptContent = doc.getElementById('__NEXT_DATA__').textContent;
 
     // Parser le contenu JSON en objet JavaScript
     var data = JSON.parse(scriptContent);
@@ -60,8 +65,8 @@ function get_ads_attributes(){
     return ads_attributes;
 }
 
-function get_html_element_from_ad_id(target_ad_id){
-    var ads = get_all_ads_elements();
+function get_html_element_from_ad_id(target_ad_id, doc){
+    var ads = get_all_ads_elements(doc);
     if(ads == false) return false;
     var is_found = false;
     var found_ad = null;
@@ -93,26 +98,96 @@ function calculate_return_rate(average_rent_per_square_meter, price, annual_char
     return return_rate;
 }
 
-function sort_ads() {
+async function scrapeLeboncoin(pages) {
+
+    let ads_attributes = []; 
+    let ads_elements = [];
+    for (let page = 1; page <= pages; page++) {
+        try{
+            const url = get_url_from_lbc_page_number(page);
+            console.log(`Fetching page ${page}...`);
+            
+            // Utiliser fetch pour récupérer la page HTML
+            const response = await fetch(url);
+            const text = await response.text();
+            
+            // Créer un DOMParser pour analyser la réponse HTML
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+
+            //supprimer les pubs
+            delete_ads(doc);
+
+            // Sélectionner les éléments HTML que tu veux extraire (par exemple, les annonces)
+            let ads_attributes_for_current_page = get_ads_attributes(doc);
+
+            //recuperer tous les ads
+            ads_attributes_for_current_page.forEach(aafcp => {
+                let ad_element = get_html_element_from_ad_id(aafcp.list_id.toString(), doc);
+                ads_elements.push(ad_element);
+            });
+
+            //pousser les attributs de la page en question
+            ads_attributes.push(ads_attributes_for_current_page); 
+        }
+        
+        catch(error){
+            console.log(error.message);
+            break;
+        }
+    }
+
+    // À la fin du parcours des pages, tu auras tous les résultats
+    let flattened_ads_attributes = ads_attributes.flat();
+
+    let results = flattened_ads_attributes.map((ad_attribute, index) => {
+        return { ad_attributes: ad_attribute, ad_element: ads_elements[index] };
+    });
+
+    return results;
+}
+
+function add_pictures(results){
+    results.forEach(res => {
+        try{
+            let picture_url = res.ad_attributes.images.small_url;
+            let image_element = res.ad_element.querySelector('.adcard_9ec456820 > .adcard_f346042c5 > .relative');
+            let style_injection = "url(\'" + picture_url + "\')"
+            image_element.style.backgroundImage = style_injection;
+            image_element.style.backgroundRepeat = "no-repeat";
+            image_element.style.backgroundSize = "cover";
+            image_element.style.backgroundPosition = "center";
+    
+            //changer la taille des images
+            let picture_container = res.ad_element.querySelector('.adcard_7c1e7cd4d  > a');
+            picture_container.style.width = "35%";
+        }
+        catch(error){
+            console.log(error.message);
+        }
+    });
+}
+
+async function sort_ads() {
 
     // supprimer les pubs
     delete_ads();
 
-    // recuperer les attributs des ads
-    let ads_attributes = get_ads_attributes();
+    //scraper un certain nombre de page
+    let results  = await scrapeLeboncoin(5);  
 
     // Tableau pour stocker les rendements net de charges foncières
     let return_rates = [];
 
     // Parcourir toutes les annonces
-    ads_attributes.forEach(ad_attributes => {
+    results.forEach(res => {
         
         //chercher le prix de l'ad
-        let price = parseInt(ad_attributes.price[0], 10);
+        let price = parseInt(res.ad_attributes.price[0], 10);
 
         //chercher le type de bien en question
         let real_estate_type = "unknown";
-        ad_attributes.attributes.forEach(att => {
+        res.ad_attributes.attributes.forEach(att => {
             if(att.key == "real_estate_type"){
                 real_estate_type = att.value_label;
             }
@@ -120,15 +195,12 @@ function sort_ads() {
 
         //chercher le loyer moyen au m2
         let average_rent_per_square_meter = 11.8;
-        
-        //obtenir l'element correspondant
-        let ad_element = get_html_element_from_ad_id(ad_attributes.list_id.toString());
 
         //chercher les charge de copro de l'ad et le nombre de m2
         let annual_charges = 0;
         let square = 0;
         if(real_estate_type == "Appartement"){
-            ad_attributes.attributes.forEach(att => {
+            res.ad_attributes.attributes.forEach(att => {
                 if(att.key == "annual_charges"){
                     annual_charges = parseInt(att.value, 10);
                 }
@@ -139,19 +211,19 @@ function sort_ads() {
 
             if(annual_charges != 0 && square != 0){
                 return_rates.push({
-                    element: ad_element,
+                    element: res.ad_element,
                     rate: calculate_return_rate(average_rent_per_square_meter, price, annual_charges, square)
                 });
             }
             else{
                 return_rates.push({
-                    element: ad_element,
+                    element: res.ad_element,
                     rate: 0
                 });
             }
         }
         else if(real_estate_type == "Maison"){
-            ad_attributes.attributes.forEach(att => {
+            res.ad_attributes.attributes.forEach(att => {
                 if(att.key == "square"){
                     square = parseInt(att.value, 10);
                 }
@@ -159,14 +231,14 @@ function sort_ads() {
 
             if(square != 0){
                 return_rates.push({
-                    element: ad_element,
+                    element: res.ad_element,
                     rate: calculate_return_rate(average_rent_per_square_meter, price, annual_charges, square)
                 });
             }
         }
         else{
             return_rates.push({
-                element: ad_element,
+                element: res.ad_element,
                 rate: 0
             });
         }
@@ -179,6 +251,15 @@ function sort_ads() {
     let container = document.querySelectorAll('.mb-lg');
     let container_filtered = Array.from(container).filter(el => el.classList.length === 1 && el.classList.contains('mb-lg'));
     let container_filtered_good_one = container_filtered[0];
+
+    //supprimer les elements de la page
+    let current_ads = get_all_ads_elements();
+    current_ads.forEach(current_ad => {
+        current_ad.remove();
+    });
+
+    //ajouter les photos
+    add_pictures(results);
 
     // Réorganiser les annonces dans le DOM
     return_rates.forEach(return_rate => {
@@ -224,11 +305,7 @@ function sort_ads() {
             return_rate.element.appendChild(return_display);
         }
     });
-
-    
-
-
-
 }
+
 
 sort_ads();

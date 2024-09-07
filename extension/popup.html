@@ -1,28 +1,60 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-    <title>Mon Popup</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LBC Immo Finder</title>
     <style>
+        /* Style global pour le body */
         body {
-            width: 200px;
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 250px;
+            color: #333;
+            width: 250px; /* Largeur typique pour une popup d'extension */
         }
-        .box {
-            width: 100px;
-            height: 100px;
-            background-color: lightblue;
-            border: 1px solid #ccc;
-            margin: 10px;
-            transition: all 0.5s ease;
+
+        /* Style du titre */
+        h1 {
+            font-size: 20px;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
         }
-        .box.active {
-            background-color: lightcoral;
+
+        /* Style du bouton */
+        #sort_ads {
+            padding: 10px 15px;
+            background-color: #3498db;
+            border: none;
+            color: white;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%; /* Occupe toute la largeur disponible */
         }
+
+        /* Effet au survol du bouton */
+        #sort_ads:hover {
+            background-color: #2980b9;
+        }
+
     </style>
 </head>
 <body>
-    <h1>LBF finder</h1>
-    <button id="sort_ads">Trier</button>
+    <h1>LBC Immo Finder</h1>
+
+    <!-- Bouton pour trier les annonces -->
+    <button id="sort_ads">Trier les annonces</button>
+
+    <!-- Inclusion du script -->
     <script src="popup.js"></script>
 </body>
 </html>
